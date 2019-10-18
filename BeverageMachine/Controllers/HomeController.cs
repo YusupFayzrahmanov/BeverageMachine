@@ -35,26 +35,9 @@ namespace BeverageMachine.Controllers
             var _vm = new HomeViewModel()
             {
                 Drinks = _db.Drinks.ToList(),
-                Coins = _db.Coins.ToList()
+                Coins = _db.Coins.ToList(),
+                Buyer = GetBuyer(HttpContext)
             };
-            var _cookieRequest = HttpContext.Request.Cookies["buyerId"].Value;
-            if(_cookieRequest != null)
-            {
-                var _buyer = _buyerCache.GetBuyer(_cookieRequest);
-                if(_buyer != null)
-                {
-                    _vm.BuyerAmount = _buyer.Amount;
-                }
-                else
-                {
-                    SetCookies(HttpContext, 0);
-                }
-            }
-            else
-            {
-                SetCookies(HttpContext, 0);
-            }
-            
             return View(_vm);
         }
 
@@ -65,24 +48,9 @@ namespace BeverageMachine.Controllers
                 var _coin = _db.Coins.Find(Id);
                 if (_coin == null)
                     return HttpNotFound();
-                var _cookieRequest = HttpContext.Request.Cookies["buyerId"].Value;
-                if(_cookieRequest != null)
-                {
-                    var _buyer = _buyerCache.GetBuyer(_cookieRequest);
-                    if(_buyer != null)
-                    {
-                        _buyer.Amount += _coin.Value;
-                        _buyerCache.Update(_buyer);
-                    }
-                    else
-                    {
-                        SetCookies(HttpContext, _coin.Value);
-                    }
-                }
-                else
-                {
-                    SetCookies(HttpContext, _coin.Value);
-                }
+                var _buyer = GetBuyer(HttpContext);
+                _buyer.Amount += _coin.Value;
+                _buyerCache.Update(_buyer);
                 _coin.Count++;
                 _db.SaveChanges();
 
@@ -98,7 +66,6 @@ namespace BeverageMachine.Controllers
         {
             try
             {
-                decimal _buyerAmount = 0;
                 var _drink = _db.Drinks.Find(id);
                 if (_drink == null)
                     return HttpNotFound();
@@ -109,31 +76,16 @@ namespace BeverageMachine.Controllers
                 }
                 else
                 {
-                    
-                    var _cookieRequest = HttpContext.Request.Cookies["buyerId"].Value;
-                    if (_cookieRequest != null)
-                    {
-                        var _buyer = _buyerCache.GetBuyer(_cookieRequest);
-                        if (_buyer != null)
-                        {
-                            _buyerAmount = _buyer.Amount;
-                        }
-                        else
-                        {
-                            SetCookies(HttpContext, 0);
-                        }
-                    }
-                    else
-                    {
-                        SetCookies(HttpContext, 0);
-                    }
-                    if(_drink.Cost < _buyerAmount)
+
+                    var _buyer = GetBuyer(HttpContext);
+                    if(_drink.Cost < _buyer.Amount)
                     {
                         ViewBag.Error = "Напиток дороже внесенной суммы!";
                         return RedirectToAction("Index");
                     }
                     else
                     {
+                        _buyer.Drinks.Add(_drink);
                         _drink.Count--;
                         _db.SaveChanges();
                     }
@@ -148,10 +100,13 @@ namespace BeverageMachine.Controllers
             return RedirectToAction("Index");
         }
 
-        //public JsonResult GetChange()
-        //{
-
-        //}
+        public ActionResult GetChange()
+        {
+            var _buyer = GetBuyer(HttpContext);
+            var _coins = _db.Coins.ToList();
+            var _selectCoins = _coins.Where(x => x.Count > 0 && x.Value <= _buyer.Amount);
+            _selectCoins.OrderByDescending(x => x.Value);
+        }
 
         protected override void Dispose(bool disposing)
         {
@@ -162,14 +117,36 @@ namespace BeverageMachine.Controllers
             base.Dispose(disposing);
         }
 
-        private void SetCookies(HttpContextBase httpContext, decimal coin)
+        private Buyer GetBuyer(HttpContextBase httpContext)
+        {
+            var _cookieRequest = httpContext.Request.Cookies["buyerId"].Value;
+            if (_cookieRequest != null)
+            {
+                var _buyer = _buyerCache.GetBuyer(_cookieRequest);
+                if (_buyer != null)
+                {
+                    return _buyer;
+                }
+                else
+                {
+                    return SetCookies(httpContext);
+                }
+            }
+            else
+            {
+                return SetCookies(httpContext);
+            }
+
+        }
+
+        private Buyer SetCookies(HttpContextBase httpContext)
         {
             var _guidId = Guid.NewGuid().ToString();
-            decimal _amount = 0;
-            _amount += coin;
-            _buyerCache.Add(new Buyer() { Id = _guidId, Amount = _amount });
+            var _buyer = new Buyer() { Id = _guidId, Amount = 0 };
+            _buyerCache.Add(_buyer);
             httpContext.Response.Cookies["buyerId"].Value = _guidId;
             httpContext.Response.Cookies["buyerId"].Expires = DateTime.Now.AddMinutes(20);
+            return _buyer;
         }
     }
 }

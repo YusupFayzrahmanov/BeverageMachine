@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
+﻿using System.Collections.Generic;
 
 namespace BeverageMachine.Models
 {
@@ -10,5 +7,7 @@ namespace BeverageMachine.Models
         public string Id { get; set; }
 
         public decimal Amount { get; set; }
+
+        public List<Drink> Drinks { get; set; } = new List<Drink>();
     }
 }
