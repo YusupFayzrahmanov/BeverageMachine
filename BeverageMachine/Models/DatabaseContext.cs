@@ -9,17 +9,12 @@ namespace BeverageMachine.Models
         { }
 
         /// <summary>
-        /// 
+        /// Книги
         /// </summary>
-        public DbSet<Drink> Drinks { get; set; }
+        public DbSet<Book> Books { get; set; }
 
         /// <summary>
-        /// 
-        /// </summary>
-        public DbSet<Coin> Coins { get; set; }
-
-        /// <summary>
-        /// 
+        /// Настройки
         /// </summary>
         public DbSet<Setting> Settings { get; set; }
     }
